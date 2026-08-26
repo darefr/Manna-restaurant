@@ -1,0 +1,9 @@
+import { requirePermission } from '@/lib/auth'
+import { query } from '@/lib/db'
+import { Card, PageHeader, Th, Td } from '@/components/admin/ui'
+
+export default async function AdminReportsPage() {
+  await requirePermission('reports.view')
+  const rows = await query<{ day: string; orders: string; revenue: string; guests: string }>(`SELECT to_char(date_trunc('day', created_at), 'Mon DD') AS day, count(*)::text AS orders, coalesce(sum(total),0)::text AS revenue, count(DISTINCT user_id)::text AS guests FROM orders WHERE created_at >= now() - interval '30 days' AND status <> 'CANCELLED' GROUP BY 1, date_trunc('day', created_at) ORDER BY date_trunc('day', created_at) DESC`)
+  return <main className="space-y-6"><PageHeader title="Reports" subtitle="Thirty-day operational performance from live order data." /><div className="grid gap-4 sm:grid-cols-3"><Card><p className="text-xs uppercase tracking-widest text-muted-foreground">Orders</p><p className="mt-2 font-serif text-3xl text-gold">{rows.reduce((n,r)=>n+Number(r.orders),0)}</p></Card><Card><p className="text-xs uppercase tracking-widest text-muted-foreground">Revenue</p><p className="mt-2 font-serif text-3xl text-beige">Rs. {rows.reduce((n,r)=>n+Number(r.revenue),0).toLocaleString('en-IN')}</p></Card><Card><p className="text-xs uppercase tracking-widest text-muted-foreground">Active days</p><p className="mt-2 font-serif text-3xl text-beige">{rows.length}</p></Card></div><Card title="Daily performance" className="overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full min-w-[560px]"><thead><tr><Th>Date</Th><Th align="right">Orders</Th><Th align="right">Revenue</Th><Th align="right">Guests</Th></tr></thead><tbody>{rows.map((r)=><tr key={r.day} className="border-t border-border/70"><Td>{r.day}</Td><Td align="right">{r.orders}</Td><Td align="right">Rs. {Number(r.revenue).toLocaleString('en-IN')}</Td><Td align="right">{r.guests}</Td></tr>)}</tbody></table></div></Card></main>
+}
